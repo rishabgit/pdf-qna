@@ -1,0 +1,10 @@
+--extra-index-url https://download.pytorch.org/whl/cpu # remove this line if you're on GPU
+openai
+python-dotenv
+pypdf
+faiss-cpu
+pytest
+sentence-transformers
+transformers
+instructor
+pre-commit
