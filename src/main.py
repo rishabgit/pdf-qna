@@ -58,7 +58,7 @@ def generate_qa_pairs(context):
         messages=[
             {
                 "role": "system",
-                "content": "You are a world class system that generates multiple distinctive question-answer pair based on the context.",  # noqa: E501
+                "content": "You are a world class system that generates as many as possible distinctive question-answer pair based on the context.",  # noqa: E501
             },
             {
                 "role": "user",
