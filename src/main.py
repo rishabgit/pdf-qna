@@ -1,15 +1,16 @@
-from pypdf import PdfReader
-import nltk
-from nltk.tokenize import sent_tokenize
-from sentence_transformers import SentenceTransformer
 import os
-import openai
-from openai import OpenAI
-from pydantic import Field, BaseModel, model_validator, ValidationInfo
-from typing import List
-import instructor
 import re
+from typing import List
+
+import instructor
+import nltk
+import openai
 from dotenv import load_dotenv
+from nltk.tokenize import sent_tokenize
+from openai import OpenAI
+from pydantic import BaseModel, Field, ValidationInfo, model_validator
+from pypdf import PdfReader
+from sentence_transformers import SentenceTransformer
 
 nltk.download("punkt")
 
