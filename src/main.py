@@ -6,11 +6,10 @@ import instructor
 import nltk
 import openai
 from dotenv import load_dotenv
-from nltk.tokenize import sent_tokenize
 from openai import OpenAI
 from pydantic import BaseModel, Field, ValidationInfo, model_validator
-from pypdf import PdfReader
-from sentence_transformers import SentenceTransformer
+
+from src.utils import extract_data_from_pdf
 
 nltk.download("punkt")
 
@@ -18,31 +17,6 @@ load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 client = instructor.patch(OpenAI())
-
-encoder = SentenceTransformer("all-MiniLM-L6-v2")
-
-
-def extract_data_from_pdf(pdf_path):
-    documents = []
-    reader = PdfReader(pdf_path)
-    number_of_pages = len(reader.pages)
-    for i in range(number_of_pages):
-        page = reader.pages[i]
-        text = page.extract_text()
-        text = re.sub(r"\n+", " ", text)
-        sentences = sent_tokenize(text)
-        # store more metatdata in documents if possible
-        documents.append({"text": text, "sentences": sentences, "page_number": i + 1})
-    return documents
-
-
-def generate_embeddings(documents):
-    vectors = encoder.encode(
-        [sent for doc in documents for sent in doc["sentences"]],
-        batch_size=32,
-        show_progress_bar=True,
-    )
-    return vectors
 
 
 class Fact(BaseModel):
@@ -100,11 +74,14 @@ def generate_qa_pairs(context):
     return response
 
 
-documents = extract_data_from_pdf("netflix_cosine.pdf")
-vectors = generate_embeddings(documents)
-for doc in documents:
-    response = generate_qa_pairs(doc["text"])  # send entire page text
-    qa_pairs = []
-    for q, a in zip(response.questions, response.answers):
-        qa_pairs.append({"question": q, "answer": a.fact, "quotes": a.substring_quote})
-    doc["qa_pairs"] = qa_pairs
+if __name__ == "__main__":
+    documents = extract_data_from_pdf("data/netflix_cosine.pdf")
+
+    for doc in documents:
+        response = generate_qa_pairs(doc["text"])  # send entire page text
+        qa_pairs = []
+        for q, a in zip(response.questions, response.answers):
+            qa_pairs.append(
+                {"question": q, "answer": a.fact, "quotes": a.substring_quote}
+            )
+        doc["qa_pairs"] = qa_pairs
