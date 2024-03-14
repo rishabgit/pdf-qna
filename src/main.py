@@ -107,8 +107,8 @@ def evals(question, answer, context):
         checks=[
             Evals.RESPONSE_COMPLETENESS_WRT_CONTEXT,
             CritiqueTone(llm_persona=persona),
-            # Evals.FACTUAL_ACCURACY,
-            # Evals.CRITIQUE_LANGUAGE,
+            Evals.FACTUAL_ACCURACY,
+            Evals.CRITIQUE_LANGUAGE,
         ],
     )[0]
     res.pop("question", None)
@@ -118,6 +118,42 @@ def evals(question, answer, context):
 
 
 def run(pdf_path):
+    """
+    Extracts data from a PDF file and generates question-answer pairs for each page.
+
+    This function processes each page of the PDF, extracting the text content and generating
+    question-answer pairs using the OpenAI API. It performs evaluation on each question-answer
+    pair, assessing the quality and accuracy of the generated responses.
+
+    Args:
+        pdf_path (str): The path to the PDF file.
+
+    Returns:
+        list: A list of dictionaries, where each dictionary represents a page in the PDF.
+              Each dictionary contains the following keys:
+              - 'text' (str): The extracted text content of the page.
+              - 'sentences' (list): The extracted text split into sentences.
+              - 'page_number' (int): Page number.
+              - 'qa_pairs' (list): A list of question-answer pairs generated for the page.
+                                   Each question-answer pair is represented as a dictionary
+                                   with the following keys:
+                                   - 'question' (str): The generated question.
+                                   - 'answer' (str): The generated answer.
+                                   - 'quotes' (list): The substring quotes from the page text
+                                                      that support the answer, used for citation.
+                                   - 'evals' (dict): The evaluation scores and reasoning for the
+                                                     question-answer pair. Current evals:
+                                                     - context utilization : Score measuring
+                                                       how complete the answer is given the context.
+                                                     - factual accuracy: Score indicating
+                                                       whether the answer is factually correct based
+                                                       on the context.
+                                                     - language features: Score assessing
+                                                       the quality and effectiveness of language in
+                                                       the answer.
+                                                     - tonality: Score evaluating whether
+                                                       the answer matches the required persona's tone.
+    """
     documents = extract_data_from_pdf(pdf_path)
     logger.info(f"Extracted data from PDF. Total pages: {len(documents)}.")
 
