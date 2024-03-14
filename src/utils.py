@@ -1,8 +1,10 @@
 import re
 
-from nltk.tokenize import sent_tokenize
+import nltk
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
+
+nltk.download("punkt")
 
 encoder = SentenceTransformer("all-MiniLM-L6-v2")
 
@@ -28,7 +30,7 @@ def extract_data_from_pdf(pdf_path: str):
         page = reader.pages[i]
         text = page.extract_text()
         text = re.sub(r"\n+", " ", text)
-        sentences = sent_tokenize(text)
+        sentences = nltk.tokenize.sent_tokenize(text)
         # store more metatdata in documents if possible
         documents.append({"text": text, "sentences": sentences, "page_number": i + 1})
     return documents

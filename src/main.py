@@ -5,7 +5,6 @@ import re
 from typing import List
 
 import instructor
-import nltk
 import openai
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -13,7 +12,7 @@ from pydantic import BaseModel, Field, ValidationInfo, model_validator
 from tqdm import tqdm
 from uptrain import CritiqueTone, EvalLLM, Evals, Settings
 
-from utils import extract_data_from_pdf
+from src.utils import extract_data_from_pdf
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -22,7 +21,6 @@ handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
 logger.addHandler(handler)
 
-nltk.download("punkt")
 
 load_dotenv()
 
