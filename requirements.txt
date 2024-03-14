@@ -2,13 +2,14 @@
 openai
 python-dotenv
 pypdf
-faiss-cpu
 pytest
-sentence-transformers
-transformers
 instructor
 pre-commit
 uptrain
 fastapi
 uvicorn
 python-multipart
+nltk
+sentence-transformers
+transformers
+faiss-cpu
