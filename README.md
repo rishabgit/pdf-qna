@@ -1,6 +1,6 @@
 # PDF Question-Answer Generator
 
-Generates questions and answers from a given PDF file. Provides an API for uploading PDF files and extracting relevant questions and answers with cited sources. Includes LLM evaluation sources with reasoning for assessing the quality of the generated output.
+Extract questions and answers from PDF files effortlessly. Upload PDFs via API and get relevant Q&A pairs with cited sources. LLM evaluation scores ensure high-quality, accurate output.
 
 ## Features
 
