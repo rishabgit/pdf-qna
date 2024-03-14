@@ -1,3 +1,4 @@
+import argparse
 import os
 import re
 from typing import List
@@ -9,7 +10,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field, ValidationInfo, model_validator
 
-from src.utils import extract_data_from_pdf
+from utils import extract_data_from_pdf
 
 nltk.download("punkt")
 
@@ -75,7 +76,14 @@ def generate_qa_pairs(context):
 
 
 if __name__ == "__main__":
-    documents = extract_data_from_pdf("data/netflix_cosine.pdf")
+    parser = argparse.ArgumentParser(
+        description="Generate question-answer pairs from a PDF file."
+    )
+    parser.add_argument("-path", "--pdf_path", type=str, help="Path to the PDF file")
+    args = parser.parse_args()
+
+    documents = extract_data_from_pdf(args.pdf_path)
+    print(documents)
 
     for doc in documents:
         response = generate_qa_pairs(doc["text"])  # send entire page text
