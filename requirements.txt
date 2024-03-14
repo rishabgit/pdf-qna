@@ -9,3 +9,6 @@ transformers
 instructor
 pre-commit
 uptrain
+fastapi
+uvicorn
+python-multipart
