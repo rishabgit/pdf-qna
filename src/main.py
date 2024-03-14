@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import re
 from typing import List
@@ -9,9 +10,17 @@ import openai
 from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field, ValidationInfo, model_validator
+from tqdm import tqdm
 from uptrain import CritiqueTone, EvalLLM, Evals, Settings
 
 from utils import extract_data_from_pdf
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+handler = logging.StreamHandler()
+handler.setLevel(logging.INFO)
+logger.addHandler(handler)
 
 nltk.download("punkt")
 
@@ -80,6 +89,9 @@ def generate_qa_pairs(context):
         n=1,
         validation_context={"text_chunk": context},
     )
+    logger.info(
+        f"OAI {OPENAI_MODEL} usage for generation: {response._raw_response.usage}."
+    )
     return response
 
 
@@ -97,8 +109,8 @@ def evals(question, answer, context):
         checks=[
             Evals.RESPONSE_COMPLETENESS_WRT_CONTEXT,
             CritiqueTone(llm_persona=persona),
-            Evals.FACTUAL_ACCURACY,
-            Evals.CRITIQUE_LANGUAGE,
+            # Evals.FACTUAL_ACCURACY,
+            # Evals.CRITIQUE_LANGUAGE,
         ],
     )[0]
     res.pop("question", None)
@@ -107,19 +119,19 @@ def evals(question, answer, context):
     return res
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Generate question-answer pairs from a PDF file."
-    )
-    parser.add_argument("-path", "--pdf_path", type=str, help="Path to the PDF file")
-    args = parser.parse_args()
+def run(pdf_path):
+    documents = extract_data_from_pdf(pdf_path)
+    logger.info(f"Extracted data from PDF. Total pages: {len(documents)}.")
 
-    documents = extract_data_from_pdf(args.pdf_path)
-
-    for doc in documents:
+    for page_i, doc in enumerate(documents):
         response = generate_qa_pairs(doc["text"])  # send entire page text
+        logger.info(
+            f"Generated QnAs for page {page_i+1}.\nCount of Qs: "
+            f"{len(response.questions)} & As: {len(response.answers)}."
+        )
         qa_pairs = []
-        for q, a in zip(response.questions, response.answers):
+        logger.info("Running evals...")
+        for q, a in tqdm(zip(response.questions, response.answers)):
             evals_res = evals(q, a.fact, doc["text"])
             qa_pairs.append(
                 {
@@ -130,4 +142,21 @@ if __name__ == "__main__":
                 }
             )
         doc["qa_pairs"] = qa_pairs
+    return documents
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Generate question-answer pairs from a PDF file."
+    )
+    parser.add_argument(
+        "-path",
+        "--pdf_path",
+        type=str,
+        default="data/The-Emperors-New-Clothes.pdf",
+        help="Path to the PDF file",
+    )
+    args = parser.parse_args()
+
+    documents = run(args.pdf_path)
     print(documents)
