@@ -9,6 +9,7 @@ import openai
 from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field, ValidationInfo, model_validator
+from uptrain import CritiqueTone, EvalLLM, Evals, Settings
 
 from utils import extract_data_from_pdf
 
@@ -16,8 +17,15 @@ nltk.download("punkt")
 
 load_dotenv()
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+OPENAI_MODEL = "gpt-3.5-turbo"
+
+openai.api_key = OPENAI_API_KEY
 client = instructor.patch(OpenAI())
+
+settings = Settings(model=OPENAI_MODEL, openai_api_key=OPENAI_API_KEY)
+eval_llm = EvalLLM(settings)
 
 
 class Fact(BaseModel):
@@ -66,13 +74,37 @@ def generate_qa_pairs(context):
                 "content": f"Use this context to generate the question-answer pairs: {context}",
             },
         ],
-        model="gpt-3.5-turbo",
+        model=OPENAI_MODEL,
         response_model=QuestionsAnswers,
         max_tokens=200,
         n=1,
         validation_context={"text_chunk": context},
     )
     return response
+
+
+def evals(question, answer, context):
+    data = [
+        {
+            "question": question,
+            "response": answer,
+            "context": context,
+        }
+    ]
+    persona = "Responds to questions with precise, factual answers, omitting any extraneous or informal content."
+    res = eval_llm.evaluate(
+        data=data,
+        checks=[
+            Evals.RESPONSE_COMPLETENESS_WRT_CONTEXT,
+            CritiqueTone(llm_persona=persona),
+            Evals.FACTUAL_ACCURACY,
+            Evals.CRITIQUE_LANGUAGE,
+        ],
+    )[0]
+    res.pop("question", None)
+    res.pop("context", None)
+    res.pop("response", None)
+    return res
 
 
 if __name__ == "__main__":
@@ -83,13 +115,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     documents = extract_data_from_pdf(args.pdf_path)
-    print(documents)
 
     for doc in documents:
         response = generate_qa_pairs(doc["text"])  # send entire page text
         qa_pairs = []
         for q, a in zip(response.questions, response.answers):
+            evals_res = evals(q, a.fact, doc["text"])
             qa_pairs.append(
-                {"question": q, "answer": a.fact, "quotes": a.substring_quote}
+                {
+                    "question": q,
+                    "answer": a.fact,
+                    "quotes": a.substring_quote,
+                    "evals": evals_res,
+                }
             )
         doc["qa_pairs"] = qa_pairs
+    print(documents)
