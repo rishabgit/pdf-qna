@@ -81,3 +81,11 @@ run("data/The-Emperors-New-Clothes.pdf")
    ```bash
    pytest tests/
    ```
+
+## TODOs
+
+- Integrate support for images, charts, and illustrations in PDFs using GPT-4V. Refer to this [comparison](https://www.reddit.com/r/LocalLLaMA/comments/192eg2s/comparing_imagechartillustration_descriptions/) between GPT-4V, LLaVa, Qwen-VL, and CogVLM for more information.
+  - Update the PDF reader to handle these additional modalities.
+- Allows users to input questions and receive corresponding answers with supporting metadata.
+- Perform an extensive evaluation of the LLM using OpenAI's [evals](https://github.com/openai/evals) framework across [diverse datasets](https://github.com/openai/evals/tree/main/evals/registry/data). This assessment will help identify niche areas where the LLM's output accuracy may be suboptimal, allowing us to determine beforehand if the model might not excel on a PDF belonging to that specific field.
+- Find the final prompts sent by Uptrain and Instructor to OpenAI using [mitmproxy](https://mitmproxy.org/). Refer to this [blog post](https://hamel.dev/blog/posts/prompt/) by Hamel Husain for further context.
