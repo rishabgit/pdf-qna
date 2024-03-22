@@ -1,18 +1,15 @@
 import argparse
 import logging
 import os
-import re
-from typing import List
 
 import instructor
-import openai
 from dotenv import load_dotenv
 from openai import OpenAI
-from pydantic import BaseModel, Field, ValidationInfo, model_validator
 from tqdm import tqdm
-from uptrain import CritiqueTone, EvalLLM, Evals, Settings
+from uptrain import EvalLLM, Settings
 
-from src.utils import extract_data_from_pdf
+from src.models import QuestionsAnswers
+from src.utils import evals, extract_data_from_pdf
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -28,49 +25,14 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 OPENAI_MODEL = "gpt-3.5-turbo"
 
-openai.api_key = OPENAI_API_KEY
-client = instructor.patch(OpenAI())
+oai_client = instructor.patch(OpenAI(api_key=OPENAI_API_KEY))
 
-settings = Settings(model=OPENAI_MODEL, openai_api_key=OPENAI_API_KEY)
-eval_llm = EvalLLM(settings)
-
-
-class Fact(BaseModel):
-    fact: str = Field(...)
-    substring_quote: List[str] = Field(...)
-
-    @model_validator(mode="after")
-    def validate_sources(self, info: ValidationInfo) -> "Fact":
-        text_chunks = info.context.get("text_chunk", None)
-        spans = list(self.get_spans(text_chunks))
-        self.substring_quote = [
-            text_chunks[span[0] : span[1]] for span in spans  # noqa: E203
-        ]
-        return self
-
-    def get_spans(self, context):
-        for quote in self.substring_quote:
-            yield from self._get_span(quote, context)
-
-    def _get_span(self, quote, context):
-        for match in re.finditer(re.escape(quote), context):
-            yield match.span()
-
-
-class QuestionsAnswers(BaseModel):
-    questions: List[str] = Field(description="The question generated from the context.")
-    answers: List[Fact] = Field(description="The answer of the question.")
-
-    @model_validator(mode="after")
-    def validate_sources(self) -> "QuestionsAnswers":
-        self.answers = [
-            fact if len(fact.substring_quote) > 0 else None for fact in self.answers
-        ]
-        return self
+uptrain_settings = Settings(model=OPENAI_MODEL, openai_api_key=OPENAI_API_KEY)
+eval_llm = EvalLLM(uptrain_settings)
 
 
 def generate_qa_pairs(context):
-    response = client.chat.completions.create(
+    response = oai_client.chat.completions.create(
         messages=[
             {
                 "role": "system",
@@ -93,31 +55,7 @@ def generate_qa_pairs(context):
     return response
 
 
-def evals(question, answer, context):
-    data = [
-        {
-            "question": question,
-            "response": answer,
-            "context": context,
-        }
-    ]
-    persona = "Responds to questions with precise, factual answers, omitting any extraneous or informal content."
-    res = eval_llm.evaluate(
-        data=data,
-        checks=[
-            Evals.RESPONSE_COMPLETENESS_WRT_CONTEXT,
-            CritiqueTone(llm_persona=persona),
-            Evals.FACTUAL_ACCURACY,
-            Evals.CRITIQUE_LANGUAGE,
-        ],
-    )[0]
-    res.pop("question", None)
-    res.pop("context", None)
-    res.pop("response", None)
-    return res
-
-
-def run(pdf_path):
+def run(pdf_path, eval=False):
     """
     Extracts data from a PDF file and generates question-answer pairs for each page.
 
@@ -166,15 +104,11 @@ def run(pdf_path):
         qa_pairs = []
         logger.info("Running evals...")
         for q, a in tqdm(zip(response.questions, response.answers)):
-            evals_res = evals(q, a.fact, doc["text"])
-            qa_pairs.append(
-                {
-                    "question": q,
-                    "answer": a.fact,
-                    "quotes": a.substring_quote,
-                    "evals": evals_res,
-                }
-            )
+            temp_qa = {"question": q, "answer": a.fact, "quotes": a.substring_quote}
+            if eval:
+                evals_res = evals(q, a.fact, doc["text"], eval_llm)
+                temp_qa["evals"] = evals_res
+            qa_pairs.append(temp_qa)
         doc["qa_pairs"] = qa_pairs
     return documents
 

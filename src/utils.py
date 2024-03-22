@@ -3,6 +3,7 @@ import re
 import nltk
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
+from uptrain import CritiqueTone, EvalLLM, Evals
 
 nltk.download("punkt")
 
@@ -52,3 +53,27 @@ def generate_embeddings(documents: str):
         show_progress_bar=True,
     )
     return vectors
+
+
+def evals(question: str, answer: str, context: str, eval_llm: EvalLLM):
+    data = [
+        {
+            "question": question,
+            "response": answer,
+            "context": context,
+        }
+    ]
+    persona = "Responds to questions with precise, factual answers, omitting any extraneous or informal content."
+    res = eval_llm.evaluate(
+        data=data,
+        checks=[
+            Evals.RESPONSE_COMPLETENESS_WRT_CONTEXT,
+            CritiqueTone(llm_persona=persona),
+            Evals.FACTUAL_ACCURACY,
+            Evals.CRITIQUE_LANGUAGE,
+        ],
+    )[0]
+    res.pop("question", None)
+    res.pop("context", None)
+    res.pop("response", None)
+    return res
